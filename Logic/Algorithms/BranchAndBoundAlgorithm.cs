@@ -15,18 +15,11 @@ namespace Logic.Algorithms
             var result = 0;
             var iterations = 0;
 
-            int[,] matrix = graph.Matrix;
-            int matrixH = SubstractMinValues(matrix);
-            Tuple<int, int, int> ijFine = GetIJFine(matrix);
-            var iForZeroWithMaxFine = ijFine.Item1;
-            var jForZeroWithMaxFine = ijFine.Item2;
-            var ijs = new List<Tuple<int, int>>();
-            var allMatricesAndHs = new List<Tuple<int[,], int, List<Tuple<int, int>>>>();
-            List<Tuple<int, int>> route = GetRoute(matrix, matrixH, ijs, allMatricesAndHs);
+            List<Tuple<int, int>> route = GetRoute(graph, ref iterations);
 
             foreach (Tuple<int, int> vertex in route)
             {
-                result += matrix[vertex.Item1, vertex.Item2];
+                result += graph.Matrix[vertex.Item1, vertex.Item2];
             }
 
             var endTime = DateTime.Now;
@@ -34,14 +27,38 @@ namespace Logic.Algorithms
             return new ReturnData("Branch&Bound Algorithm", result, iterations, (endTime - startTime).Milliseconds);
         }
 
-        private static List<Tuple<int, int>> GetRoute(int[,] matrix, int matrixH, List<Tuple<int, int>> ijs,
-            List<Tuple<int[,], int, List<Tuple<int, int>>>> allMatricesAndHs)
+        private static List<Tuple<int, int>> GetRoute(Graph graph, ref int iterations)
         {
-            if (matrix.Length == 4)
+            int[,] matrix = new int[graph.Matrix.GetLength(0), graph.Matrix.GetLength(0)];
+            for (int i = 0; i < matrix.GetLength(0); i++)
             {
-                ijs.Add(Tuple.Create(matrix[0, 0], matrix[1, 1]));
-                ijs.Add(Tuple.Create(matrix[1, 0], matrix[0, 1]));
+                for (int j = 0; j < matrix.GetLength(0); j++)
+                {
+                    matrix[i, j] = graph.Matrix[i, j];
+                }
+            }
 
+            int matrixH = SubstractMinValues(matrix);
+            var ijs = new List<Tuple<int, int>>();
+            var allMatricesAndHs = new List<Tuple<int[,], int, List<Tuple<int, int>>>>();
+
+            return GetRoute(matrix, matrixH, ijs, allMatricesAndHs, ref iterations);
+        }
+
+        private static List<Tuple<int, int>> GetRoute(int[,] matrix, int matrixH, List<Tuple<int, int>> ijs,
+            List<Tuple<int[,], int, List<Tuple<int, int>>>> allMatricesAndHs, ref int iterations)
+        {
+            iterations++;
+
+            Tuple<int, int, int> numbersIJNumber = GetNumbersIJNumber(matrix);
+            if (numbersIJNumber.Item1 == 1)
+            {
+                ijs.Add(Tuple.Create(numbersIJNumber.Item2, numbersIJNumber.Item3));
+
+                return ijs;
+            }
+            if (numbersIJNumber.Item1 == 0)
+            {
                 return ijs;
             }
 
@@ -50,25 +67,47 @@ namespace Logic.Algorithms
             Tuple<int, int, int> ijFine = GetIJFine(matrix);
             var iForZeroWithMaxFine = ijFine.Item1;
             var jForZeroWithMaxFine = ijFine.Item2;
-            var maxFine = ijFine.Item3;
+            var matrixFine = ijFine.Item3;
 
             int[,] newMatrixWithoutIJ = FormNewMatrixWithoutIJ(matrix, iForZeroWithMaxFine, jForZeroWithMaxFine);
-            int newMatrixWithoutIJH = matrixH + GetIJFine(matrix).Item3;
+            int newMatrixWithoutIJH = matrixH + SubstractMinValues(newMatrixWithoutIJ);
             List<Tuple<int, int>> ijsWithoutIJ = ijs.ConvertAll(ij => ij);
 
-
-            int[,] newMatrixWithIJ = FormNewMatrixWithIJ(matrix, iForZeroWithMaxFine, jForZeroWithMaxFine);
-            int newMatrixWithIJH = matrixH + SubstractMinValues(newMatrixWithIJ);
             List<Tuple<int, int>> ijsWithIJ = ijs.ConvertAll(ij => ij);
             ijsWithIJ.Add(Tuple.Create(iForZeroWithMaxFine, jForZeroWithMaxFine));
+            int[,] newMatrixWithIJ = FormNewMatrixWithIJ(matrix, iForZeroWithMaxFine, jForZeroWithMaxFine, ijsWithIJ);
+            int newMatrixWithIJH = matrixH + SubstractMinValues(newMatrixWithIJ);
 
             allMatricesAndHs.Add(Tuple.Create(newMatrixWithoutIJ, newMatrixWithoutIJH, ijsWithoutIJ));
             allMatricesAndHs.Add(Tuple.Create(newMatrixWithIJ, newMatrixWithIJH, ijsWithIJ));
 
             Tuple<int[,], int, List<Tuple<int, int>>> matrixWithMinH =
-                allMatricesAndHs.Last(m => m.Item2 == allMatricesAndHs.Select(mm => mm.Item2).Min());
+                allMatricesAndHs.OrderBy(m => m.Item3.Count)
+                .Last(m => m.Item2 == allMatricesAndHs.Select(mm => mm.Item2).Min());
 
-            return GetRoute(matrixWithMinH.Item1, matrixWithMinH.Item2, matrixWithMinH.Item3, allMatricesAndHs);
+            return GetRoute(matrixWithMinH.Item1, matrixWithMinH.Item2, matrixWithMinH.Item3, allMatricesAndHs,
+                ref iterations);
+        }
+
+        private static Tuple<int, int, int> GetNumbersIJNumber(int[,] matrix)
+        {
+            var numbers = 0;
+            var numberI = 0;
+            var numberJ = 0;
+            for (int i = 0; i < matrix.GetLength(0); i++)
+            {
+                for (int j = 0; j < matrix.GetLength(0); j++)
+                {
+                    if (matrix[i, j] != int.MaxValue)
+                    {
+                        numbers++;
+                        numberI = i;
+                        numberJ = j;
+                    }
+                }
+            }
+
+            return Tuple.Create(numbers, numberI, numberJ);
         }
 
         private static int SubstractMinValues(int[,] matrix)
@@ -86,9 +125,17 @@ namespace Logic.Algorithms
                     }
                 }
 
+                if (min == int.MaxValue)
+                {
+                    min = 0;
+                }
+
                 for (int j = 0; j < matrix.GetLength(0); j++)
                 {
-                    matrix[i, j] -= min;
+                    if (matrix[i, j] != int.MaxValue)
+                    {
+                        matrix[i, j] -= min;
+                    }
                 }
 
                 iMin += min;
@@ -107,9 +154,17 @@ namespace Logic.Algorithms
                     }
                 }
 
+                if (min == int.MaxValue)
+                {
+                    min = 0;
+                }
+
                 for (int j = 0; j < matrix.GetLength(0); j++)
                 {
-                    matrix[j, i] -= min;
+                    if (matrix[j, i] != int.MaxValue)
+                    {
+                        matrix[j, i] -= min;
+                    }
                 }
 
                 jMin += min;
@@ -163,29 +218,25 @@ namespace Logic.Algorithms
             return Tuple.Create(iForZeroWithMaxFine, jForZeroWithMaxFine, maxFine);
         }
 
-        private static int[,] FormNewMatrixWithIJ(int[,] matrix, int iForZeroWithMaxFine, int jForZeroWithMaxFine)
+        private static int[,] FormNewMatrixWithIJ(int[,] matrix, int iForZeroWithMaxFine, int jForZeroWithMaxFine,
+            List<Tuple<int, int>> ijs)
         {
-            var newMatrix = new int[matrix.GetLength(0) - 1, matrix.GetLength(0) - 1];
-            var ii = 0;
-            var jj = 0;
+            var newMatrix = new int[matrix.GetLength(0), matrix.GetLength(0)];
             for (int i = 0; i < matrix.GetLength(0); i++)
             {
                 for (int j = 0; j < matrix.GetLength(0); j++)
                 {
-                    ii = i >= iForZeroWithMaxFine && i != 0 ? i - 1 : i;
-                    jj = j >= jForZeroWithMaxFine && j != 0 ? j - 1 : j;
-
-                    if (i != iForZeroWithMaxFine && j != jForZeroWithMaxFine)
+                    if (i == jForZeroWithMaxFine && j == iForZeroWithMaxFine)
                     {
-                        if (newMatrix[ii, jj] != inf)
-                        {
-                            newMatrix[ii, jj] = matrix[i, j];
-                        }
+                        newMatrix[i, j] = inf;
                     }
-
-                    if (i == iForZeroWithMaxFine && j == jForZeroWithMaxFine)
+                    else if (i != iForZeroWithMaxFine && j != jForZeroWithMaxFine)
                     {
-                        newMatrix[ii, jj] = inf;
+                        newMatrix[i, j] = matrix[i, j];
+                    }
+                    else
+                    {
+                        newMatrix[i, j] = inf;
                     }
                 }
             }

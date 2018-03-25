@@ -32,7 +32,7 @@ namespace Logic.Algorithms
                 possibleVertices.Remove(minRouteValueAndVertex.Item2);
             }
 
-            result += graph.Get(0, graph.Size - 1);
+            result += graph.Get(0, route.Last());
             var endTime = DateTime.Now;
 
             return new ReturnData("Greedy Search", result, iterations, (endTime - startTime).Milliseconds);

@@ -44,7 +44,6 @@
     <Compile Include="Algorithms\BruteForceSearch.cs" />
     <Compile Include="Algorithms\GreedyAlgorithm.cs" />
     <Compile Include="Algorithms\LocalSearch2.cs" />
-    <Compile Include="Algorithms\LocalSearch3.cs" />
     <Compile Include="Algorithms\ReturnData.cs" />
     <Compile Include="Graphs\Graph.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
