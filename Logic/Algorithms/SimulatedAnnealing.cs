@@ -77,7 +77,7 @@ namespace Logic.Algorithms
         private static List<int> GetDefaultRoute(Graph graph)
         {
             var route = new List<int>();
-            for (int i = 0; i < graph.Size - 1; i++)
+            for (int i = 0; i < graph.Size; i++)
             {
                 route.Add(i);
             }
